@@ -1,5 +1,5 @@
 <template>
-  <q-page class="flex flex-center">
+  <q-page class="flex flex-center column q-gutter-md">
     <q-card bordered style="min-width: 350px;" class="my-card">
       <q-card-section>
         <div class="text-h6">Create SubCategory</div>
@@ -9,34 +9,86 @@
 
       <q-card-section>
         <q-form @submit.prevent="createSubCategory">
-          <q-input label="Name" v-model="name" />
-          <q-select label="Sizes" v-model="sizes" use-chips multiple hide-dropdown-icon use-input fill-input
+          <q-input label="Name" v-model="subCategory.name" />
+          <q-select label="Sizes" v-model="subCategory.sizes" use-chips multiple hide-dropdown-icon use-input fill-input
             new-value-mode="add-unique" @new-value="handleNewValue">
             <template v-slot: append>
-              <q-btn label="Cancel" color="negative" flat @click.stop.prevent="removeAll" v-if="sizes.length > 0" />
+              <q-btn label="Cancel" color="negative" flat @click.stop.prevent="removeAll"
+                v-if="subCategory.sizes.length > 0" />
             </template>
           </q-select>
-          <q-select label="Categories" v-model="selectedCategory" :options="categories" option-label="name"
+          <q-select label="Categories" v-model="subCategory.parent" :options="categories" option-label="name"
             option-value="_id" emit-value map-options filled />
           <div class="row justify-end q-mt-sm">
-            <q-btn label="Create" type="submit" color="primary" />
+            <q-btn label="Create" type="submit" color="primary" no-caps />
           </div>
         </q-form>
       </q-card-section>
     </q-card>
+    <div class="q-pa-md " style="width: 550px">
+      <q-table :rows="subcategories" :columns="columns">
+        <template #body-cell-sizes="props">
+          <q-td :props="props">
+            <q-chip :label="size" v-for="size of props.row.sizes" :key="size" />
+          </q-td>
+        </template>
+        <template #body-cell-actions="props">
+          <q-td :props="props">
+            <q-btn icon="delete" flat round color="negative" @click="deleteSubCategory(props.row)" />
+          </q-td>
+        </template>
+        <template #bottom>
+          <div></div>
+        </template>
+      </q-table>
+    </div>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import type { QSelectProps } from 'quasar';
+import type { QSelectProps, QTableProps } from 'quasar';
 import { api } from 'src/boot/axios';
 import { ref, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 
-const name = ref('');
-const sizes = ref<string[]>([]);
-const categories = ref<{ _id: string, name: string }[]>([]);
-const selectedCategory = ref<string>('');
+type Category = { _id: string, name: string }
+type SubCategory = { _id: string, name: string, parent: Category, sizes: string[] }
+
+const categories = ref<Category[]>([]);
+const subcategories = ref<SubCategory[]>([]);
+const subCategory = ref<SubCategory>({
+  _id: undefined as unknown as string,
+  name: '',
+  parent: undefined as unknown as Category,
+  sizes: []
+})
+const columns = ref<QTableProps['columns']>([
+  {
+    field: "name",
+    label: "Name",
+    name: 'name'
+  },
+  {
+    field: "parent",
+    label: "Category",
+    name: "parent",
+    format(val) {
+      return val.name
+    }
+  },
+  {
+    field: "sizes",
+    label: "Sizes",
+    name: "sizes",
+    align: "center"
+  },
+  {
+    label: "Actions",
+    field: "actions",
+    name: "actions"
+  }
+])
+
 const $q = useQuasar();
 
 const fetchCategories = async () => {
@@ -51,17 +103,16 @@ const fetchCategories = async () => {
 
 const createSubCategory = async () => {
   try {
-    const payload = {
-      name: name.value.trim(),
-      sizes: sizes.value,
-      category: selectedCategory.value
-    }
-    await api.post('/api/subcategory', payload);
-    $q.notify({ type: 'positive', message: 'Suncategory created successfully' });
 
-    name.value = '';
-    sizes.value = [];
-    selectedCategory.value = '';
+    await api.post('/api/subcategory', subCategory.value);
+    $q.notify({ type: 'positive', message: 'Subcategory created successfully' });
+    subCategory.value = {
+      _id: undefined as unknown as string,
+      name: '',
+      parent: undefined as unknown as Category,
+      sizes: []
+    };
+    await fetchSubCategories();
   } catch (e) {
     console.log("Couldn't find error", e);
     $q.notify({ type: 'negative', message: 'Failed to create subcategory' });
@@ -70,79 +121,53 @@ const createSubCategory = async () => {
 
 const handleNewValue: QSelectProps['onNewValue'] = (value: string, done) => {
   const size = value.trim().toUpperCase();
-  if (size && !sizes.value.includes(size)) {
+  if (size && !subCategory.value.sizes.includes(size)) {
     done(size);
   }
 }
 
-
-const removeAll = () => {
-  sizes.value = [];
+const fetchSubCategories = async () => {
+  try {
+    const response = await api.get('/api/subcategory');
+    subcategories.value = response.data;
+  } catch {
+    $q.notify({ type: 'positive', message: 'Unable to fetch subcategories' });
+  }
 }
 
-onMounted(fetchCategories);
+const deleteSubCategory = async (data: SubCategory, confirmed = false) => {
+  if (!confirmed) {
+    $q.dialog({
+      title: "Confirmation",
+      message: "Are you sure you want to delete this subcategory?",
+      ok: {
+        color: "negative",
+        label: "Delete",
+        noCaps: true
+      },
+      cancel: {
+        label: "Cancel",
+        color: 'grey-7',
+        noCaps: true
+      },
+    }).onOk(() => {
+      deleteSubCategory(data, true).catch(() => undefined)
+    })
+
+    return
+  }
+
+  await api.delete('/api/subcategory/' + data._id)
+  await fetchSubCategories()
+}
+
+const removeAll = () => {
+  subCategory.value.sizes = [];
+}
+
+onMounted(async () => {
+  await fetchCategories();
+  await fetchSubCategories();
+});
+
 </script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<!-- <template>
-  <q-page class="flex justify-center items-center">
-    <q-card style="min-width: 30rem; max-width: 90dvw">
-      <q-card-section>
-        <div class="text-h6">Create SubCategory</div>
-      </q-card-section>
-
-      <q-separator />
-
-      <q-card-section>
-        <q-form class="q-gutter-md">
-          <q-input v-model="name" label="Name" required />
-          <q-select v-model="category" label="Category" required />
-          <q-input v-model="sizes" label="Sizes" required />
-          <q-btn label="Create" color="primary" outline no-caps type="submit" />
-        </q-form>
-      </q-card-section>
-    </q-card>
-  </q-page>
-</template>
-
-<script setup lang="ts">
-import { ref } from 'vue';
-
-
-const name = ref('');
-const category = ref(null);
-const sizes = ref('');
-
-
-</script> -->

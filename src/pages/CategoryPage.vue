@@ -1,5 +1,5 @@
 <template>
-  <q-page class="flex justify-center items-center">
+  <q-page class="flex justify-center column items-center q-gutter-md">
     <q-card style="min-width: 30rem; max-width: 90dvw">
       <q-card-section>
         <div class="text-h6">Create Category</div>
@@ -15,21 +15,25 @@
         </q-form>
       </q-card-section>
       <q-separator />
-      <q-card-section>
-        <div class="text-subtitle1 q-mb-sm">Existing Categories</div>
-        <q-list bordered separator>
-          <q-item v-for="category in categories" :key="category._id">
-            <q-item-section>
-              {{ category.name }}
-            </q-item-section>
-            <q-item-section side>
-              <q-btn flat dense round color="negative" @click="deleteCategory(category._id)"><q-icon
-                  name="cancel"></q-icon></q-btn>
-            </q-item-section>
-          </q-item>
-        </q-list>
-      </q-card-section>
     </q-card>
+
+    <div class="q-pa-md " style="width: 30rem">
+      <q-list bordered separator>
+        <q-item-label header class="bg-blue-1 text-gray-9 text-bold q-pa-sm">
+          <q-item-section>List of categories</q-item-section>
+        </q-item-label>
+        <q-item v-for="category in categories" :key="category._id">
+          <q-item-section>
+            {{ category.name }}
+          </q-item-section>
+          <q-item-section side>
+            <q-btn flat dense round color="negative" @click="deleteCategory(category._id)"><q-icon
+                name="cancel"></q-icon></q-btn>
+          </q-item-section>
+        </q-item>
+      </q-list>
+    </div>
+
   </q-page>
 </template>
 
